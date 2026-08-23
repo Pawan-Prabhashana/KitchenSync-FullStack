@@ -1,0 +1,22 @@
+# Render blueprint for the KitchenSync Express API (the Node backend).
+# The Vite frontend is hosted separately (e.g. Vercel). After this deploys,
+# set VITE_API_URL on the frontend host to this service's URL, and set
+# CORS_ORIGIN below to the frontend's URL.
+services:
+  - type: web
+    name: kitchensync-api
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run server
+    envVars:
+      # Render injects PORT automatically; the server reads it.
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      # CHANGE this to your deployed frontend URL (comma-separate to allow several).
+      - key: CORS_ORIGIN
+        value: https://YOUR-APP.vercel.app
+      - key: NODE_VERSION
+        value: "20"

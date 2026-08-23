@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+/*
+ * KitchenSync design system (Tailwind v4 @theme tokens).
+ * Calm, soft, rounded, light. Accents are used ONLY for small dots / chips /
+ * rings / focus — never large fills. Primary/active is charcoal.
+ */
+@theme {
+  /* Canvas & surfaces */
+  --color-canvas: #f5f7f3;        /* warm off-white with a faint sage tint */
+  --color-surface: #ffffff;       /* cards */
+  --color-hairline: #eceee9;      /* 1px separators */
+
+  /* Ink */
+  --color-ink: #1e2420;           /* primary text (warm near-black) */
+  --color-muted: #7a8177;         /* secondary text */
+  --color-faint: #a7aca3;         /* tertiary / placeholders */
+
+  /* Charcoal — active pill + primary buttons */
+  --color-charcoal: #22262c;
+  --color-charcoal-hover: #2e333b;
+
+  /* Accent: green (success / Kitchen / on-time) */
+  --color-green-chip: #dcefd6;
+  --color-green-ink: #3e7a39;
+  --color-green-dot: #79b96c;
+
+  /* Accent: peach/amber (pending / warning) */
+  --color-peach-chip: #fbe8ce;
+  --color-peach-ink: #a56e1e;
+  --color-peach-dot: #e7a64b;
+
+  /* Accent: coral/red (urgent / late) */
+  --color-coral-chip: #fbd9d5;
+  --color-coral-ink: #af4a41;
+  --color-coral-dot: #e17d71;
+
+  /* Accent: sky/blue (info / Delivery) */
+  --color-sky-chip: #d8e8f4;
+  --color-sky-ink: #3e6c9c;
+  --color-sky-dot: #6da6da;
+
+  /* Accent: lilac (neutral extra, e.g. served/done) */
+  --color-lilac-chip: #e6e2f2;
+  --color-lilac-ink: #6a5f97;
+  --color-lilac-dot: #a99fd4;
+
+  /* Radii */
+  --radius-card: 1.125rem;        /* 18px — rounded-card */
+  --radius-pill: 9999px;
+
+  /* Soft shadows */
+  --shadow-soft: 0 1px 2px rgba(20, 25, 20, 0.04), 0 10px 30px rgba(20, 30, 20, 0.05);
+  --shadow-soft-lg: 0 2px 4px rgba(20, 25, 20, 0.05), 0 18px 44px rgba(20, 30, 20, 0.09);
+  --shadow-pop: 0 8px 24px rgba(20, 30, 20, 0.10), 0 2px 6px rgba(20, 25, 20, 0.06);
+
+  /* Type */
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Base */
+html {
+  background: var(--color-canvas);
+}
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Slightly tighter, calmer headings (hierarchy via size/color, not all-bold) */
+h1, h2, h3 {
+  letter-spacing: -0.015em;
+}
+
+/* Thin, unobtrusive scrollbars for the horizontally-scrolling board */
+.ks-scroll::-webkit-scrollbar { height: 8px; width: 8px; }
+.ks-scroll::-webkit-scrollbar-thumb { background: #d8ddd4; border-radius: 9999px; }
+.ks-scroll::-webkit-scrollbar-track { background: transparent; }

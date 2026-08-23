@@ -1,0 +1,6 @@
+{
+  "name": "KitchenSync",
+  "description": "Real-time kitchen order management board for waiters and chefs with live synchronization, urgency timers, conflict guards, and order stage history.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

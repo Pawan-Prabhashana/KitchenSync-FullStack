@@ -4,12 +4,28 @@ import { NotFoundError, ValidationError } from '../utils/httpError';
 import { makeOrderId, makeHistoryId } from '../utils/ids';
 import { nowTime } from '../utils/versioning';
 import { Order, OrderItem, Stage, Actor } from '../models/types';
+import { env } from '../config/env';
+import { aggregateOrderStats, computeOrderStats } from '../db/stats';
 
 const STAGES: Stage[] = ['New', 'Cooking', 'Ready', 'Served'];
 
 function actorFrom(req: Request): Actor {
   const u = req.user!;
   return { name: u.name, role: u.role };
+}
+
+/**
+ * GET /api/orders/stats?branchId=... — counts by stage and by chef.
+ * Mongo uses a real aggregation pipeline; memory computes the equivalent so the
+ * endpoint behaves identically regardless of the data source.
+ */
+export async function orderStats(req: Request, res: Response): Promise<void> {
+  const branchId = typeof req.query.branchId === 'string' ? req.query.branchId : undefined;
+  if (env.dataSource === 'mongo') {
+    res.json(await aggregateOrderStats(branchId));
+  } else {
+    res.json(computeOrderStats(await orderRepository.findAll(), branchId));
+  }
 }
 
 /** GET /api/orders?branchId=... */

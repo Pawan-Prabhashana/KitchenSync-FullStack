@@ -23,10 +23,20 @@ if (!jwtSecret) {
   );
 }
 
+/** Data source: 'mongo' persists via Mongoose; 'memory' uses the in-memory store. */
+const dataSource: 'mongo' | 'memory' = process.env.DATA_SOURCE === 'mongo' ? 'mongo' : 'memory';
+const mongodbUri = process.env.MONGODB_URI;
+
+if (dataSource === 'mongo' && !mongodbUri) {
+  throw new Error('DATA_SOURCE=mongo requires MONGODB_URI to be set (Atlas, or mongodb://127.0.0.1:27017/kitchensync).');
+}
+
 export const env = {
   port: Number(process.env.PORT) || 4000,
   jwtSecret,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
+  dataSource,
+  mongodbUri,
   /**
    * Allowed CORS origins. Accepts a comma-separated list (e.g. the Vercel
    * production URL + localhost), or `*` to allow any origin (handy for a demo).

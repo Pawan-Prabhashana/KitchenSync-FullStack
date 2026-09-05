@@ -79,6 +79,65 @@ npm run build
 # upload the dist/ folder to Vercel
 ```
 
+## Data Model & Persistence
+
+The API runs on either an **in-memory store** (default) or **MongoDB via Mongoose**,
+chosen by `DATA_SOURCE`. Both implement the same async repository interfaces, so
+controllers/routes are identical. Full schema + indexes: [`docs/DATA-MODEL.md`](docs/DATA-MODEL.md).
+
+### Embedded vs referenced
+
+| Collection | Field | Modelling | Why |
+|---|---|---|---|
+| `orders` / `deliveries` | `items[]` | **Embedded** | Bounded (a handful per order) and *always* read/written together with the order — never queried on their own. One document = one atomic read/write. |
+| `orders` / `deliveries` | `history[]` | **Embedded** | Append-only, small, and only ever shown inside that order's timeline. Embedding keeps the whole audit trail in one place with the order. |
+| `orders` / `deliveries` | `branchId` | **Referenced** (string id) | Branches are a small, stable set defined in app data; storing the id avoids duplicating branch info and lets us index/filter by branch. |
+| `orders` / `deliveries` | `waiter` / `chef` / `rider` | **Referenced by name** | Staff are a separate `users` collection; assignments are lightweight labels and staff records evolve independently. |
+| `users` | — | Own collection | Read for auth and staff dropdowns, independent lifecycle; never embedded into orders. |
+
+The read/write pattern drives it: a board reads *all of an order at once* (items +
+history + status), so embedding beats joins; staff and branches are shared, slowly
+changing, and referenced by id/name.
+
+### Concurrency strategy
+
+Every order/delivery carries a `version` integer. Mutations use **optimistic
+concurrency**: the client sends the `expectedVersion` it last saw, and the Mongo repo
+applies the change with an **atomic** `findOneAndUpdate({ id, version }, { $set…, $inc:{version:1} })`.
+If the stored version has moved on, the guarded update matches nothing → the API returns
+**409** with the current `version`/`lastUpdatedBy`/`lastUpdatedAt` instead of silently
+overwriting. This avoids lost updates when two staff act on the same ticket, without
+long-held locks — a good fit for a fast, multi-user board.
+
+### Client-side persistence
+
+The frontend keeps a **localStorage cache** per branch/board: on load the board hydrates
+instantly from cache, then reconciles with the API. In-progress work therefore survives a
+refresh or a brief network drop (the bottom status bar flips to *Disconnected* rather than
+losing the action) — satisfying "renders from local storage / works offline" without a
+sync engine like PouchDB. The API remains the source of truth.
+
+### Running against MongoDB
+
+Set these in `.env` (already configured for this project against **MongoDB Atlas**):
+
+```bash
+DATA_SOURCE=mongo
+MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>/kitchensync   # Atlas
+npm run server    # logs "MongoDB connected" and seeds on first run
+```
+
+Prefer a local DB? Run Mongo in Docker and point the URI at it:
+
+```bash
+docker run -d -p 27017:27017 --name ks-mongo mongo:8
+MONGODB_URI=mongodb://127.0.0.1:27017/kitchensync
+```
+
+The in-memory store (`DATA_SOURCE=memory`, the default) needs no database and behaves
+identically for the same requests. Data written in `mongo` mode **survives a server
+restart**; the in-memory store resets each process start.
+
 ## Project structure
 
 ```

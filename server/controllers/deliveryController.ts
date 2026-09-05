@@ -4,6 +4,8 @@ import { NotFoundError, ValidationError } from '../utils/httpError';
 import { makeDeliveryId, makeHistoryId } from '../utils/ids';
 import { nowTime } from '../utils/versioning';
 import { DeliveryOrder, DeliveryStage, OrderItem, PaymentMethod, Actor } from '../models/types';
+import { env } from '../config/env';
+import { aggregateDeliveryStats, computeDeliveryStats } from '../db/stats';
 
 const DELIVERY_STAGES: DeliveryStage[] = [
   'Preparing',
@@ -12,6 +14,19 @@ const DELIVERY_STAGES: DeliveryStage[] = [
   'Delivered'
 ];
 const PAYMENTS: PaymentMethod[] = ['Cash', 'Card', 'Online'];
+
+/**
+ * GET /api/deliveries/stats?branchId=... — counts by stage and by rider.
+ * Mongo uses a real aggregation pipeline; memory computes the equivalent.
+ */
+export async function deliveryStats(req: Request, res: Response): Promise<void> {
+  const branchId = typeof req.query.branchId === 'string' ? req.query.branchId : undefined;
+  if (env.dataSource === 'mongo') {
+    res.json(await aggregateDeliveryStats(branchId));
+  } else {
+    res.json(computeDeliveryStats(await deliveryRepository.findAll(), branchId));
+  }
+}
 
 function actorFrom(req: Request): Actor {
   const u = req.user!;

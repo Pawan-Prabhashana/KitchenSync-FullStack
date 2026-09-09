@@ -1,5 +1,7 @@
 # KitchenSync
 
+[![CI](https://github.com/Pawan-Prabhashana/KitchenSync-FullStack/actions/workflows/ci.yml/badge.svg)](https://github.com/Pawan-Prabhashana/KitchenSync-FullStack/actions/workflows/ci.yml)
+
 **Live demo:** [https://kitchensync-ten.vercel.app](https://kitchensync-ten.vercel.app)
 
 KitchenSync is a dual-board restaurant ops app for **dine-in kitchen** and **delivery dispatch**, across **8 Sri Lankan city branches**. Waiters, chefs, and riders create orders, advance stages, assign staff, and review history — with JWT auth, an Express REST API, and conflict guards.
@@ -78,6 +80,28 @@ echo 'VITE_API_URL=https://your-api-host' > .env.production
 npm run build
 # upload the dist/ folder to Vercel
 ```
+
+## Run with Docker
+
+The whole stack — **MongoDB + Express API + static frontend** — runs locally with one
+command (the "docker-compose for local multi-service runs" the brief asks for):
+
+```bash
+docker compose up --build
+```
+
+| Service | URL | Notes |
+|---|---|---|
+| `web` (nginx serving the Vite build) | http://localhost:3000 | built with `VITE_API_URL=http://localhost:4000` |
+| `api` (Express) | http://localhost:4000 | `DATA_SOURCE=mongo`, connects to the `mongo` service, seeds on first run |
+| `mongo` (MongoDB 8) | localhost:27017 | data persists in the `mongo-data` named volume |
+
+- The API waits for Mongo to be healthy, then connects to `mongodb://mongo:27017/kitchensync` and seeds users + per-branch orders on first run.
+- Data **survives** `docker compose down` + `up` (named volume). `docker compose down -v` wipes it.
+- Files: `Dockerfile` (API), `web.Dockerfile` + `nginx.conf` (frontend), `docker-compose.yml`, `.dockerignore`. Compose uses local dev values only — no secrets. The existing Vercel/Railway/Render deploy configs are unchanged.
+
+Stop with `Ctrl-C` (or `docker compose down`). Running without Docker (against Atlas or
+the in-memory store) still works exactly as below.
 
 ## Data Model & Persistence
 
@@ -173,6 +197,21 @@ server/
 - The API seeds from `src/data/` on boot; state resets when the server restarts.
 - Passwords are bcrypt-hashed. `JWT_SECRET` comes from the environment.
 - Multi-user Socket.IO sync is a later milestone.
+
+## Testing
+
+Automated tests run on **both tiers** with [Vitest](https://vitest.dev):
+
+- **Server** — Supertest integration tests against the Express app (`server/tests/*`): health, auth (register/login/`/me`/401), orders & deliveries CRUD, optimistic-concurrency **409**, aggregation stats, and 404 guards.
+- **Client** — React Testing Library + jsdom (`src/**/*.test.tsx`): the `Avatar`, `OrderCard`, and `NewOrderModal` components, plus the `src/lib/api.ts` client (token handling + typed errors).
+
+```bash
+npm test               # run everything once
+npm run test:watch     # watch mode
+npm run test:coverage  # + HTML/lcov report in ./coverage
+```
+
+Tests use the **in-memory store** (`DATA_SOURCE=memory`) and mocked fetch — **no MongoDB required**, so they run anywhere. **CI** (GitHub Actions, `.github/workflows/ci.yml`) runs `npm run lint` + `npm run test:coverage` on every push and pull request to `main`, and uploads the coverage report as an artifact.
 
 ## License
 

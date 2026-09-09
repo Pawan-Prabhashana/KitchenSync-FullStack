@@ -1,0 +1,49 @@
+# Local multi-service run: MongoDB + Express API + static frontend.
+#   docker compose up --build
+#   web → http://localhost:3000   api → http://localhost:4000   mongo → localhost:27017
+services:
+  mongo:
+    image: mongo:8
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db   # named volume → data persists across down/up
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      PORT: "4000"
+      DATA_SOURCE: mongo
+      MONGODB_URI: mongodb://mongo:27017/kitchensync
+      JWT_SECRET: local-docker-dev-secret
+      CORS_ORIGIN: http://localhost:3000
+    ports:
+      - "4000:4000"
+
+  web:
+    build:
+      context: .
+      dockerfile: web.Dockerfile
+      args:
+        VITE_API_URL: http://localhost:4000
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "3000:80"
+
+volumes:
+  mongo-data:

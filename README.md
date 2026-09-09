@@ -1,20 +1,67 @@
-# KitchenSync
+<div align="center">
+
+# 🍳 KitchenSync
+
+**Real-time restaurant operations for the kitchen line and the delivery fleet — across 8 branches.**
 
 [![CI](https://github.com/Pawan-Prabhashana/KitchenSync-FullStack/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Pawan-Prabhashana/KitchenSync-FullStack/actions/workflows/ci.yml)
+[![Live demo](https://img.shields.io/badge/demo-live-brightgreen)](https://kitchensync-ten.vercel.app)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](#license)
 
-**Live demo:** [https://kitchensync-ten.vercel.app](https://kitchensync-ten.vercel.app)
+[Live demo](https://kitchensync-ten.vercel.app) · [API contract](docs/API.md) · [Data model](docs/DATA-MODEL.md)
 
-KitchenSync is a dual-board restaurant ops app for **dine-in kitchen** and **delivery dispatch** across **8 Sri Lankan city branches**. Staff log in with JWT, pick a branch and board, move tickets through stages, and keep a local cache if the API drops.
+</div>
 
-The stack is React (Vite) + an Express REST API. Persistence is either an **in-memory store** or **MongoDB (Mongoose)**. Docker Compose runs Mongo + API + nginx frontend together.
+---
 
-## Requirements
+KitchenSync is a dual-board restaurant ops app. Waiters, chefs, and riders sign in,
+pick a **branch** and a **board**, and move order tickets through their stages in real
+time. It ships with JWT auth, a versioned REST API, optimistic-concurrency conflict
+handling, an offline cache, and a one-command Docker stack.
 
-- Node.js **18+** (GitHub Actions uses **22** because Vitest 5 / jsdom 30 need it)
-- npm
-- Optional: Docker Desktop, for the full Mongo + API + web stack
+Built as a full-stack milestone project: **React (Vite) frontend + Express REST API**,
+with data in an **in-memory store** or **MongoDB (Mongoose)** — switchable with one env var.
 
-## How to run (local, npm)
+## Contents
+
+- [Features](#features)
+- [Tech stack](#tech-stack)
+- [Quick start](#quick-start-local)
+- [Demo login](#demo-login)
+- [Run with Docker](#run-with-docker)
+- [Using MongoDB](#using-mongodb)
+- [Environment variables](#environment-variables)
+- [API](#api)
+- [Testing & CI](#testing--ci)
+- [Scripts](#scripts)
+- [Project structure](#project-structure)
+- [Deployment](#deployment)
+
+## Features
+
+- **Two boards, one app**
+  - 🧑‍🍳 **Kitchen:** `New → Cooking → Ready → Served` — assign chefs, tables, notes, history, analytics.
+  - 🛵 **Delivery:** `Preparing → Ready for Pickup → Out for Delivery → Delivered` — riders, ETA, payment, distance.
+- **8 city branches** — Colombo, Galle, Kandy, Jaffna, Negombo, Kurunegala, Anuradhapura, Batticaloa — each with its own independent data.
+- **JWT auth** — register / login / me, bcrypt-hashed passwords, protected routes, role-based staff (waiter / chef / rider / admin).
+- **Versioned writes** — every `PATCH` can send `expectedVersion`; a stale write is rejected with **409** and the current server state, so two staff never silently overwrite each other.
+- **Aggregation stats** — `/api/orders/stats` and `/api/deliveries/stats` group live counts by status and by assignee.
+- **Offline-friendly** — the UI hydrates instantly from a `localStorage` cache and reconciles with the API; a brief network drop doesn't lose in-progress work.
+- **Swappable persistence** — identical repository interfaces back both the in-memory store and MongoDB; flip `DATA_SOURCE` to choose.
+
+## Tech stack
+
+| Layer | Tech |
+| --- | --- |
+| Frontend | React 19, TypeScript, Vite, Tailwind CSS v4, Motion |
+| Backend | Node.js, Express, JWT (`jsonwebtoken`), `bcryptjs` |
+| Database | MongoDB via Mongoose (or in-memory store) |
+| Tests / CI | Vitest, Testing Library, Supertest, GitHub Actions |
+| Container | Docker + Docker Compose (Mongo + API + nginx) |
+
+## Quick start (local)
+
+**Requirements:** Node.js **18+** (CI runs on **22**), npm. Docker is optional.
 
 ```bash
 git clone https://github.com/Pawan-Prabhashana/KitchenSync-FullStack.git
@@ -24,44 +71,29 @@ cp .env.example .env
 npm run dev:all
 ```
 
-- App: [http://localhost:3000](http://localhost:3000)
-- API: [http://localhost:4000](http://localhost:4000)
-- Health: [http://localhost:4000/api/health](http://localhost:4000/api/health)
+| Service | URL |
+| --- | --- |
+| App | http://localhost:3000 |
+| API | http://localhost:4000 |
+| Health | http://localhost:4000/api/health |
 
-This default uses `DATA_SOURCE=memory` (no database). The in-memory store is seeded from `src/data/` on boot and **resets when the API process restarts**.
+The default is `DATA_SOURCE=memory` — **no database needed**. The store is seeded from
+`src/data/` on boot and resets when the API restarts. Prefer two terminals? Run
+`npm run server` and `npm run dev` separately.
 
-Two terminals instead of `dev:all`:
+## Demo login
 
-```bash
-npm run server    # API on :4000
-npm run dev       # Vite on :3000
+All seeded staff share the password **`kitchen123`**.
+
+```
+priya@kitchensync.com  /  kitchen123
 ```
 
-### Demo login
+Or just tap a **quick-login** button on the sign-in page. Seeded staff live in `src/data/menu.ts`.
 
-All seeded users share the password **`kitchen123`**.
+## Run with Docker
 
-Example: `priya@kitchensync.com` / `kitchen123`
-
-Use the quick-login buttons on the login page (they hit the API). Seeded staff are in `src/data/menu.ts`.
-
-### Environment
-
-Copy `.env.example` to `.env`. Do not commit `.env`.
-
-| Variable | Purpose |
-| --- | --- |
-| `PORT` | API port (default `4000`) |
-| `JWT_SECRET` | Signs JWTs (required in production) |
-| `JWT_EXPIRES_IN` | Token lifetime (default `7d`) |
-| `CORS_ORIGIN` | Allowed frontend origin (`http://localhost:3000` in dev) |
-| `VITE_API_URL` | Frontend → API base URL (baked in at **Vite build** time) |
-| `DATA_SOURCE` | `memory` (default) or `mongo` |
-| `MONGODB_URI` | Required when `DATA_SOURCE=mongo` |
-
-## How to run (Docker)
-
-MongoDB + Express + static frontend:
+Bring up **MongoDB + API + frontend** together:
 
 ```bash
 docker compose up --build
@@ -69,111 +101,132 @@ docker compose up --build
 
 | Service | URL | Notes |
 | --- | --- | --- |
-| `web` | http://localhost:3000 | nginx serving the Vite build (`VITE_API_URL=http://localhost:4000`) |
+| `web` | http://localhost:3000 | nginx serving the Vite build |
 | `api` | http://localhost:4000 | `DATA_SOURCE=mongo`, seeds on first run |
-| `mongo` | localhost:27017 | data in the `mongo-data` volume |
+| `mongo` | localhost:27017 | data stored in the `mongo-data` volume |
 
-The API waits until Mongo is healthy, then connects to `mongodb://mongo:27017/kitchensync`. Data **survives** `docker compose down`. Wipe it with `docker compose down -v`.
+The API waits for Mongo to become healthy, connects to `mongodb://mongo:27017/kitchensync`,
+and seeds users + per-branch orders on first run. Data **survives** `docker compose down`;
+`docker compose down -v` wipes the volume. Stop with `Ctrl-C` or `docker compose down`.
 
-Stop with `Ctrl-C` or `docker compose down`.
+## Using MongoDB (without full Compose)
 
-Compose files: `Dockerfile` (API), `web.Dockerfile` + `nginx.conf` (frontend), `docker-compose.yml`, `.dockerignore`. Compose uses local-dev values only — no production secrets.
+Point the API at any MongoDB by setting two env vars, then `npm run server`.
 
-## MongoDB without full Compose
-
-Atlas (put the URI in `.env`, never commit it):
+**Atlas** (never commit the URI):
 
 ```bash
 DATA_SOURCE=mongo
 MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>/kitchensync
-npm run server
 ```
 
-Local Mongo only:
+**Local Mongo in Docker:**
 
 ```bash
 docker run -d -p 27017:27017 --name ks-mongo mongo:8
-# in .env: DATA_SOURCE=mongo  MONGODB_URI=mongodb://127.0.0.1:27017/kitchensync
-npm run server
+# .env:  DATA_SOURCE=mongo   MONGODB_URI=mongodb://127.0.0.1:27017/kitchensync
 ```
 
-The server logs Mongo connected and seeds users + per-branch orders on first run. Data in `mongo` mode **survives API restarts**.
+On first run the server logs `MongoDB connected` and seeds the data; in `mongo` mode it
+**persists across API restarts**.
 
-## What’s in the app
+## Environment variables
 
-- **8 branches:** Colombo, Galle, Kandy, Jaffna, Negombo, Kurunegala, Anuradhapura, Batticaloa
-- **Kitchen board:** New → Cooking → Ready → Served (chefs, tables, notes, history, analytics)
-- **Delivery board:** Preparing → Ready for Pickup → Out for Delivery → Delivered (riders, ETA, payment, distance)
-- **JWT auth:** `register` / `login` / `me`; bcrypt passwords; protected order/delivery/user routes
-- **CRUD** under `/api/orders` and `/api/deliveries`, plus aggregation **stats**
-- **Optimistic concurrency:** `PATCH` with `expectedVersion` → **409** on a stale write
-- **Offline cache:** `localStorage` hydrates the UI if the API is briefly unreachable
+Copy `.env.example` → `.env` (git-ignored — never commit it).
 
-Full HTTP contract: [`docs/API.md`](docs/API.md). Schema and embed-vs-reference notes: [`docs/DATA-MODEL.md`](docs/DATA-MODEL.md).
+| Variable | Purpose |
+| --- | --- |
+| `PORT` | API port (default `4000`) |
+| `JWT_SECRET` | Signs JWTs (required in production) |
+| `JWT_EXPIRES_IN` | Token lifetime (default `7d`) |
+| `CORS_ORIGIN` | Allowed frontend origin (`http://localhost:3000` in dev) |
+| `VITE_API_URL` | Frontend → API base URL, baked in at **Vite build** time |
+| `DATA_SOURCE` | `memory` (default) or `mongo` |
+| `MONGODB_URI` | Connection string, required when `DATA_SOURCE=mongo` |
+
+## API
+
+Base URL `http://localhost:4000`, everything under `/api`, JSON in and out. JWT bearer
+token required on all routes except `health`, `register`, and `login`.
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/health` | Liveness + data source / DB status |
+| `POST` | `/api/auth/register` · `/api/auth/login` | Get a `{ token, user }` |
+| `GET` | `/api/auth/me` | Current user from the token |
+| `GET/POST/PATCH/DELETE` | `/api/orders` | Kitchen orders (scoped by `?branchId=`) |
+| `GET/POST/PATCH/DELETE` | `/api/deliveries` | Delivery orders |
+| `GET` | `/api/orders/stats` · `/api/deliveries/stats` | Aggregated counts |
+| `GET` | `/api/users` | Staff directory (never leaks password hashes) |
+
+Full request/response shapes, error codes, and the 409 concurrency contract are in
+**[`docs/API.md`](docs/API.md)**; the schema and embed-vs-reference rationale in
+**[`docs/DATA-MODEL.md`](docs/DATA-MODEL.md)**.
+
+## Testing & CI
+
+Vitest runs across both tiers and forces `DATA_SOURCE=memory`, so **tests need no database**.
+
+```bash
+npm test               # run once
+npm run test:watch     # watch mode
+npm run test:coverage  # HTML + lcov report in ./coverage
+```
+
+- **Server** (`server/tests/`, Supertest): health, auth, orders/deliveries CRUD, **409** conflicts, stats, 404 guards.
+- **Client** (`src/**/*.test.tsx`, Testing Library): `Avatar`, `OrderCard`, `NewOrderModal`, and the `src/lib/api.ts` client.
+
+**GitHub Actions** (`.github/workflows/ci.yml`) runs `npm ci → lint → test:coverage` on
+Node 22 for every push and PR to `main`, and uploads the coverage report as an artifact.
 
 ## Scripts
 
-| Script | What it does |
+| Script | Does |
 | --- | --- |
 | `npm run dev:all` | API + Vite together |
-| `npm run server` | API on `PORT` (default 4000) |
-| `npm run server:dev` | API in watch mode |
-| `npm run dev` | Vite on port 3000 |
-| `npm run build` | Production frontend build |
+| `npm run dev` | Vite dev server (:3000) |
+| `npm run server` | API (:4000); `server:dev` for watch mode |
+| `npm run build` | Production frontend build → `dist/` |
 | `npm run lint` | Typecheck (`tsc --noEmit`) |
-| `npm test` | Vitest once |
-| `npm run test:watch` | Vitest watch |
-| `npm run test:coverage` | Coverage under `./coverage` |
-
-## Tests and CI
-
-Vitest covers both tiers. Tests force `DATA_SOURCE=memory` — **no Mongo required**.
-
-- **Server** (`server/tests/`): health, auth, orders/deliveries CRUD, **409** conflicts, stats, 404s (Supertest)
-- **Client** (`src/**/*.test.tsx`): Avatar, OrderCard, NewOrderModal, `src/lib/api.ts`
-
-GitHub Actions (`.github/workflows/ci.yml`) on every push/PR to `main`: `npm ci` → `npm run lint` → `npm run test:coverage` (Node 22).
+| `npm test` / `test:coverage` | Vitest / with coverage |
 
 ## Project structure
 
 ```
-src/                  React app (boards, pages, API client, per-city seeds)
-  data/branches/      one seed file per city
-  lib/api.ts          typed HTTP client + JWT in localStorage
+src/                     React app
+  components/            boards, cards, drawers, modals, Avatar
+  pages/                 login, signup, select-branch, select-board
+  data/branches/         one seed file per city
+  lib/api.ts             typed HTTP client (JWT in localStorage)
 server/
-  index.ts / app.ts   API entry
-  routes/             /api/health, auth, orders, deliveries, users
+  index.ts · app.ts      API entry + express app factory
+  routes/                health, auth, orders, deliveries, users
   controllers/
-  repositories/memory | mongo   same interfaces, swap via DATA_SOURCE
-  db/                 Mongoose connection, models, seed, aggregations
-  middleware/         JWT, errors, validation
-docs/                 API.md, DATA-MODEL.md
-Dockerfile            API image (tsx, port 4000)
-web.Dockerfile        Vite build → nginx
-docker-compose.yml    mongo + api + web
-.github/workflows/ci.yml
+  repositories/          memory | mongo  (same interfaces, swap via DATA_SOURCE)
+  db/                    Mongoose connection, models, seed, aggregations
+  middleware/            JWT auth, error handler, validation
+  utils/                 versioning (409), ids, jwt, http errors
+docs/                    API.md, DATA-MODEL.md
+Dockerfile               API image (tsx, :4000)
+web.Dockerfile           Vite build → nginx
+docker-compose.yml       mongo + api + web
 ```
 
-### localStorage keys
+**localStorage keys:** `kitchensync_token`, `kitchensync_user`,
+`kitchensync_orders_kitchen_v1`, `kitchensync_orders_delivery_v1`,
+`kitchensync_active_board_v1`.
 
-| Key | Purpose |
-| --- | --- |
-| `kitchensync_token` | JWT |
-| `kitchensync_user` | Cached user |
-| `kitchensync_orders_kitchen_v1` | Kitchen cache |
-| `kitchensync_orders_delivery_v1` | Delivery cache |
-| `kitchensync_active_board_v1` | Last selected board |
+## Deployment
 
-## Production frontend (Vercel)
-
-`VITE_API_URL` is baked in at **build** time:
+The frontend is a static Vite build; `VITE_API_URL` is inlined at **build time**:
 
 ```bash
 echo 'VITE_API_URL=https://your-api-host' > .env.production
-npm run build
+npm run build     # deploy dist/ (e.g. Vercel)
 ```
 
-Host `dist/` on Vercel. Point `CORS_ORIGIN` on the API at the Vercel origin. Railway / Render configs in the repo are unchanged.
+Deploy the API to any Node host (Railway / Render configs are included), set its
+`CORS_ORIGIN` to the frontend origin, and point `MONGODB_URI` at your database.
 
 ## License
 

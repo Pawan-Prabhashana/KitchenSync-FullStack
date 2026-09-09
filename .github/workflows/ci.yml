@@ -11,7 +11,7 @@ jobs:
     name: Lint & Test
     runs-on: ubuntu-latest
 
-    # In-memory store so CI needs no MongoDB/Atlas. A dummy secret keeps JWT signing happy.
+    # Vitest 5 / jsdom 30 need Node 22+. In-memory store so CI needs no Mongo/Atlas.
     env:
       DATA_SOURCE: memory
       JWT_SECRET: ci-test-secret
@@ -20,10 +20,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Node 20
+      - name: Set up Node 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
